@@ -64,3 +64,9 @@ To run this example coin-flip game:
 
 
 For a full explanation of the code, please see our gitbook tutorial [here!](https://docs.switchboard.xyz/docs/switchboard/switchboard-randomness/getting-started)
+
+
+
+Signer account:
+
+9H8uQe9EqL5kgx3Xad4JCk9yjyL4dR47fusiG9eNXHoF

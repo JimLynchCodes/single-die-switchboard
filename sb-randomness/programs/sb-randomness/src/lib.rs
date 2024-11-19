@@ -3,7 +3,7 @@ use switchboard_on_demand::accounts::RandomnessAccountData;
 use solana_program::pubkey::Pubkey;
 use std::str::FromStr;
 
-declare_id!("6Txeg9dhUq3aNhgoATKW1eeoxgdjvyxHxn2xhtELi7Ba");
+declare_id!("3gHtqUaKGu3RJCWVbgQFd5Gv4MQfQKmQjKSvdejkLoA7");
 
 const JIMBO: &str = "Fbgh1Bjsppo37A3aiNPEEg5kuuR4Ydca1cTYPh1tkRSo";
 
@@ -77,7 +77,7 @@ pub mod sb_randomness {
         let player_state = &mut ctx.accounts.player_state;
         player_state.latest_flip_result = 0;
         player_state.randomness_account = Pubkey::default(); // Placeholder, will be set in coin_flip
-        player_state.wager = 100;
+        player_state.wager = 10_000_000; // 0.01 Sol
         player_state.bump = ctx.bumps.player_state;
         player_state.allowed_user = ctx.accounts.user.key();
 
@@ -156,8 +156,10 @@ pub mod sb_randomness {
         let binding = [seeds_slice];
         let seeds: Option<&[&[&[u8]]]> = Some(&binding);
 
-        msg!("ROLL_RESULT: {} for player: {} who guessed: {}", randomness_result, ctx.accounts.user.key(), player_state.wager);
-
+        msg!("ROLL_RESULT: {} for player: {} who guessed: {} with wager: {}", randomness_result, ctx.accounts.user.key(), player_state.current_guess, player_state.wager);
+        
+        msg!("FLIP_RESULT: {}", randomness_result);
+        
         let prize_amount = player_state.wager * 52 / 10;
 
         if randomness_result == player_state.current_guess {
