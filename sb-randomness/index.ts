@@ -18,6 +18,7 @@ import { ensureEscrowFunded } from "./utils";
 const PLAYER_STATE_SEED = "playerState";
 const ESCROW_SEED = "stateEscrow";
 const COMMITMENT = "confirmed";
+// const COMMITMENT = "finalized";
 
 (async function main() {
   console.clear();
@@ -74,24 +75,24 @@ const COMMITMENT = "confirmed";
     myProgram.programId
   );
   console.log("\nInitialize the game states...");
-  await initializeGame(
-    myProgram,
-    playerStateAccount,
-    escrowAccount,
-    keypair,
-    sbProgram,
-    connection
-  );
-  await ensureEscrowFunded(
-    connection,
-    escrowAccount,
-    keypair,
-    sbProgram,
-    txOpts
-  );
+  // await initializeGame(
+  //   myProgram,
+  //   playerStateAccount,
+  //   escrowAccount,
+  //   keypair,
+  //   sbProgram,
+  //   connection
+  // );
+  // await ensureEscrowFunded(
+  //   connection,
+  //   escrowAccount,
+  //   keypair,
+  //   sbProgram,
+  //   txOpts
+  // );
 
   // Commit to randomness Ix
-  console.log("\nCommit to randomness...");
+  console.log("\nSubmitting Guess...");
   const commitIx = await randomness.commitIx(queue);
 
   // Create coinFlip Ix
@@ -116,56 +117,59 @@ const COMMITMENT = "confirmed";
   const sim4 = await connection.simulateTransaction(commitTx, txOpts);
   const sig4 = await connection.sendTransaction(commitTx, txOpts);
   await connection.confirmTransaction(sig4, COMMITMENT);
-  console.log("  Transaction Signature commitTx", sig4);
+  // console.log("  Transaction Signature commitTx", sig4);
+  console.log("Guess Transaction Confirmed!  ✅");
 
-  // Reveal the randomness Ix
-  console.log("\nReveal the randomness...");
-  const revealIx = await randomness.revealIx();
+  setTimeout(async () => {
 
-  console.log("revealIx: ", revealIx)
-  const settleFlipIx = await settleFlipInstruction(
-    myProgram,
-    escrowBump,
-    playerStateAccount,
-    rngKp.publicKey,
-    escrowAccount,
-    keypair
-  );
-  console.log("settleFlipIx: ", settleFlipIx)
-  
-  const revealTx = await sb.asV0Tx({
-    connection: sbProgram.provider.connection,
-    ixs: [revealIx, settleFlipIx],
-    payer: keypair.publicKey,
-    signers: [keypair],
-    computeUnitPrice: 75_000,
-    computeUnitLimitMultiple: 1.3,
-  });
-  
-  console.log("revealTx: ", revealTx)
-  const sim5 = await connection.simulateTransaction(revealTx, txOpts);
-  const sig5 = await connection.sendTransaction(revealTx, txOpts);
-  await connection.confirmTransaction(sig5, COMMITMENT);
-  console.log("  Transaction Signature revealTx", sig5);
+    console.log("\nReveal the randomness...");
+    const revealIx = await randomness.revealIx();
 
-  const answer = await connection.getParsedTransaction(sig5, {
-    maxSupportedTransactionVersion: 0,
-  });
-  let resultLog = answer?.meta?.logMessages?.filter((line) =>
-    line.includes("FLIP_RESULT")
-  )[0];
-  let result = resultLog?.split(": ")[2];
+    const settleFlipIx = await settleFlipInstruction(
+      myProgram,
+      escrowBump,
+      playerStateAccount,
+      rngKp.publicKey,
+      escrowAccount,
+      keypair
+    );
+    // console.log("settleFlipIx: ", settleFlipIx)
 
-  console.log("\nYour guess is ", userGuess);
-
-  console.log(`\nAnd the random result is ... ${result}!`);
+    const revealTx = await sb.asV0Tx({
+      connection: sbProgram.provider.connection,
+      ixs: [revealIx, settleFlipIx],
+      payer: keypair.publicKey,
+      signers: [keypair],
+      computeUnitPrice: 75_000,
+      computeUnitLimitMultiple: 1.3,
+    });
 
 
-  if (userGuess === +result) {
-    console.log('You won!')
-  }
-  else {
-    console.log('Better luck next time.')
-  }
+    const sim5 = await connection.simulateTransaction(revealTx, txOpts);
+    const sig5 = await connection.sendTransaction(revealTx, txOpts);
+    await connection.confirmTransaction(sig5, COMMITMENT);
+    // console.log("  Transaction Signature revealTx", sig5);
+    console.log("Reveal Transaction Confirmed!  ✅");
+
+    const answer = await connection.getParsedTransaction(sig5, {
+      maxSupportedTransactionVersion: 0,
+    });
+    let resultLog = answer?.meta?.logMessages?.filter((line) =>
+      line.includes("FLIP_RESULT")
+    )[0];
+    let result = resultLog?.split(": ")[2];
+
+    console.log("\nYou guessed: ", userGuess);
+
+    console.log(`\The number rolled is: ... ${result}!`);
+
+
+    if (userGuess === +result) {
+      console.log('You won!')
+    }
+    else {
+      console.log('Better luck next time.')
+    }
+  }, 1500)
 
 })();
