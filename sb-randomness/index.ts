@@ -125,6 +125,8 @@ const COMMITMENT = "confirmed";
     console.log("\nReveal the randomness...");
     const revealIx = await randomness.revealIx();
 
+    console.log("revealed ix! ", revealIx)
+
     const settleFlipIx = await settleFlipInstruction(
       myProgram,
       escrowBump,
