@@ -1,11 +1,13 @@
 use anchor_lang::prelude::*;
-use switchboard_on_demand::accounts::RandomnessAccountData;
 use solana_program::pubkey::Pubkey;
 use std::str::FromStr;
+use switchboard_on_demand::accounts::RandomnessAccountData;
 
 declare_id!("3gHtqUaKGu3RJCWVbgQFd5Gv4MQfQKmQjKSvdejkLoA7");
 
 const JIMBO: &str = "Fbgh1Bjsppo37A3aiNPEEg5kuuR4Ydca1cTYPh1tkRSo";
+const DEFAULT_MIN_BET: u64 = 10_000_000; // 0.01 Sol
+const DEFAULT_MAX_BET: u64 = 50_000_000; // 0.05 Sol
 
 pub fn withdraw<'a>(
     // ctx: Context<anchor_lang::system_program::Transfer>,
@@ -13,19 +15,21 @@ pub fn withdraw<'a>(
     from: AccountInfo<'a>,
     to: AccountInfo<'a>,
     amount: u64,
-    seeds: Option<&[&[&[u8]]]> // Use Option to explicitly handle the presence or absence of seeds
+    seeds: Option<&[&[&[u8]]]>, // Use Option to explicitly handle the presence or absence of seeds
 ) -> Result<()> {
-
-    // Only Jim can withdraw
+    // Only Jim can call this fn
     let deployer_pubkey = Pubkey::from_str(JIMBO).unwrap();
-    // if ctx.accounts.signer.key() != deployer_pubkey {
     if from.key() != deployer_pubkey {
         return Err(ErrorCode::Unauthorized.into());
     }
-      
+
     let amount_needed = amount;
     if amount_needed > from.lamports() {
-        msg!("Need {} lamports, but only have {}", amount_needed, from.lamports());
+        msg!(
+            "Need {} lamports, but only have {}",
+            amount_needed,
+            from.lamports()
+        );
         return Err(ErrorCode::NotEnoughFundsToPlay.into());
     }
 
@@ -47,12 +51,15 @@ fn transfer<'a>(
     from: AccountInfo<'a>,
     to: AccountInfo<'a>,
     amount: u64,
-    seeds: Option<&[&[&[u8]]]> // Use Option to explicitly handle the presence or absence of seeds
+    seeds: Option<&[&[&[u8]]]>, // Use Option to explicitly handle the presence or absence of seeds
 ) -> Result<()> {
-      
     let amount_needed = amount;
     if amount_needed > from.lamports() {
-        msg!("Need {} lamports, but only have {}", amount_needed, from.lamports());
+        msg!(
+            "Need {} lamports, but only have {}",
+            amount_needed,
+            from.lamports()
+        );
         return Err(ErrorCode::NotEnoughFundsToPlay.into());
     }
 
@@ -84,13 +91,86 @@ pub mod sb_randomness {
         Ok(())
     }
 
+    pub fn initialize_game(ctx: Context<InitializeGame>) -> Result<()> {
+        // Only Jim can call this fn
+        let deployer_pubkey = Pubkey::from_str(JIMBO).unwrap();
+        if from.key() != deployer_pubkey {
+            return Err(ErrorCode::Unauthorized.into());
+        }
+
+        ctx.accounts.game_account.min_bet = DEFAULT_MIN_BET;
+        ctx.accounts.game_account.min_bet = DEFAULT_MAX_BET;
+
+        msg!("Initializing game account");
+
+        Ok(())
+    }
+
+    pub fn update_min_bet(ctx: Context<UpdateBet>, new_min_bet: u64) -> Result<()> {
+        // Only Jim can call this fn
+        let deployer_pubkey = Pubkey::from_str(JIMBO).unwrap();
+        if from.key() != deployer_pubkey {
+            return Err(ErrorCode::Unauthorized.into());
+        }
+
+        if new_min_bet > ctx.accounts.game_account.max_bet {
+            return Err(ErrorCode::MinAboveMax.into());
+        }
+
+        ctx.accounts.game_account.min_bet = new_min_bet;
+
+        msg!("Updating min bet to: {}", new_min_bet);
+
+        Ok(())
+    }
+
+    pub fn update_max_bet(ctx: Context<UpdateBet>, new_max_bet: u64) -> Result<()> {
+        // Only Jim can call this fn
+        let deployer_pubkey = Pubkey::from_str(JIMBO).unwrap();
+        if from.key() != deployer_pubkey {
+            return Err(ErrorCode::Unauthorized.into());
+        }
+
+        if new_max_bet < ctx.accounts.game_account.min_bet {
+            return Err(ErrorCode::MaxBelowMin.into());
+        }
+
+        ctx.accounts.game_account.max_bet = new_max_bet;
+
+        msg!("Updating max bet to: {}", new_max_bet);
+
+        Ok(())
+    }
+
+    pub fn close(ctx: Context<CloseAccount>) -> Result<()> {
+        msg!("Closing account for: {:?}", ctx.accounts.user_account);
+        Ok(())
+    }
+
     // Flip the coin; only callable by the allowed user
-    pub fn coin_flip(ctx: Context<CoinFlip>, randomness_account: Pubkey, guess: u8) -> Result<()> {
-        let clock = Clock::get()?;
+    pub fn coin_flip(
+        ctx: Context<CoinFlip>,
+        randomness_account: Pubkey,
+        guess: u8,
+        bet_amount: u64,
+    ) -> Result<()> {
+        if bet_amount < ctx.accounts.game_account.min_bet {
+            return Err(ErrorCode::BetTooLow.into());
+        }
+
+        if bet_amount > ctx.accounts.game_account.max_bet {
+            return Err(ErrorCode::BetTooHigh.into());
+        }
+
         let player_state = &mut ctx.accounts.player_state;
+        player_state.wager = bet_amount;
+
+        let clock = Clock::get()?;
         // Record the user's guess
         player_state.current_guess = guess;
-        let randomness_data = RandomnessAccountData::parse(ctx.accounts.randomness_account_data.data.borrow()).unwrap();
+        let randomness_data =
+            RandomnessAccountData::parse(ctx.accounts.randomness_account_data.data.borrow())
+                .unwrap();
 
         if randomness_data.seed_slot != clock.slot - 1 {
             msg!("seed_slot: {}", randomness_data.seed_slot);
@@ -107,7 +187,7 @@ pub mod sb_randomness {
         // ***
         transfer(
             ctx.accounts.system_program.to_account_info(),
-            ctx.accounts.user.to_account_info(),  // Include the user_account
+            ctx.accounts.user.to_account_info(), // Include the user_account
             ctx.accounts.escrow_account.to_account_info(),
             player_state.wager,
             None,
@@ -132,16 +212,18 @@ pub mod sb_randomness {
 
     // Settle the flip after randomness is revealed
     pub fn settle_flip(ctx: Context<SettleFlip>, escrow_bump: u8) -> Result<()> {
-
         let clock: Clock = Clock::get()?;
         let player_state = &mut ctx.accounts.player_state;
         // call the switchboard on-demand parse function to get the randomness data
-        let randomness_data = RandomnessAccountData::parse(ctx.accounts.randomness_account_data.data.borrow()).unwrap();
+        let randomness_data =
+            RandomnessAccountData::parse(ctx.accounts.randomness_account_data.data.borrow())
+                .unwrap();
         if randomness_data.seed_slot != player_state.commit_slot {
             return Err(ErrorCode::RandomnessExpired.into());
         }
         // call the switchboard on-demand get_value function to get the revealed random value
-        let revealed_random_value = randomness_data.get_value(&clock)
+        let revealed_random_value = randomness_data
+            .get_value(&clock)
             .map_err(|_| ErrorCode::RandomnessNotResolved)?;
 
         // Use the revealed random value to determine the flip results
@@ -156,16 +238,23 @@ pub mod sb_randomness {
         let binding = [seeds_slice];
         let seeds: Option<&[&[&[u8]]]> = Some(&binding);
 
-        msg!("ROLL_RESULT: {} for player: {} who guessed: {} with wager: {}", randomness_result, ctx.accounts.user.key(), player_state.current_guess, player_state.wager);
-        
+        msg!(
+            "ROLL_RESULT: {} for player: {} who guessed: {} with wager: {}",
+            randomness_result,
+            ctx.accounts.user.key(),
+            player_state.current_guess,
+            player_state.wager
+        );
+
         msg!("FLIP_RESULT: {}", randomness_result);
-        
+
         let prize_amount = player_state.wager * 52 / 10;
 
         if randomness_result == player_state.current_guess {
             msg!("You win!");
             let rent = Rent::get()?;
-            let needed_lamports = prize_amount + rent.minimum_balance(ctx.accounts.escrow_account.data_len());
+            let needed_lamports =
+                prize_amount + rent.minimum_balance(ctx.accounts.escrow_account.data_len());
             if needed_lamports > ctx.accounts.escrow_account.lamports() {
                 msg!("Not enough funds in treasury to pay out the user. Please try again later");
                 //TODO return error here
@@ -173,9 +262,9 @@ pub mod sb_randomness {
                 transfer(
                     ctx.accounts.system_program.to_account_info(),
                     ctx.accounts.escrow_account.to_account_info(), // Transfer from the escrow
-                    ctx.accounts.user.to_account_info(), // Payout to the user's wallet
+                    ctx.accounts.user.to_account_info(),           // Payout to the user's wallet
                     prize_amount, // If the player wins, they get double their wager if the escrow account has enough funds
-                    seeds // Include seeds
+                    seeds,        // Include seeds
                 )?;
 
                 emit!(PlayerWon {
@@ -202,10 +291,10 @@ pub mod sb_randomness {
 #[account]
 pub struct PlayerState {
     allowed_user: Pubkey,
-    latest_flip_result: u8, // Stores the result of the latest flip
+    latest_flip_result: u8,     // Stores the result of the latest flip
     randomness_account: Pubkey, // Reference to the Switchboard randomness account
-    current_guess: u8, // The current guess
-    wager: u64, // The wager amount
+    current_guess: u8,          // The current guess
+    wager: u64,                 // The wager amount
     bump: u8,
     commit_slot: u64, // The slot at which the randomness was committed
 }
@@ -225,17 +314,70 @@ pub struct Initialize<'info> {
 }
 
 #[derive(Accounts)]
+pub struct CloseAccount<'info> {
+    #[account(
+        mut,
+        close = user,
+        seeds = [b"playerState", user.key().as_ref()],
+        bump
+    )]
+    pub user_account: Account<'info, UserAccount>,
+
+    #[account(mut)]
+    pub user: Signer<'info>,
+
+    pub system_program: Program<'info, System>,
+}
+
+#[account]
+#[derive(Debug)]
+pub struct GameAccount {
+    pub min_bet: u64,
+    pub max_bet: u64,
+}
+
+#[derive(Accounts)]
+pub struct InitializeGame<'info> {
+    #[account(
+        init,
+        payer = user,
+        space = 8 + 16,
+        seeds = [b"gameAccount"],
+        bump
+    )]
+    pub game_account: Account<'info, GameAccount>,
+
+    #[account(mut)]
+    pub user: Signer<'info>, // The program deployer/admin
+
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
 pub struct CoinFlip<'info> {
     #[account(mut,
         seeds = [b"playerState".as_ref(), user.key().as_ref()],
         bump = player_state.bump)]
     pub player_state: Account<'info, PlayerState>,
+
+    #[account(mut, seeds = [b"gameAccount"], bump)]
+    pub game_account: Account<'info, GameAccount>,
+
     pub user: Signer<'info>,
     /// CHECK: The account's data is validated manually within the handler.
     pub randomness_account_data: AccountInfo<'info>,
     /// CHECK: This is a simple Solana account holding SOL.
     #[account(mut, seeds = [b"stateEscrow".as_ref()], bump)]
     pub escrow_account: AccountInfo<'info>,
+    pub system_program: Program<'info, System>,
+}
+#[derive(Accounts)]
+pub struct UpdateBet<'info> {
+    #[account(mut, seeds = [b"gameAccount"], bump)]
+    pub game_account: Account<'info, GameAccount>,
+
+    pub user: Signer<'info>,
+    /// CHECK: The account's data is validated manually within the handler.
     pub system_program: Program<'info, System>,
 }
 
@@ -247,13 +389,12 @@ pub struct SettleFlip<'info> {
     pub player_state: Account<'info, PlayerState>,
     /// CHECK: The account's data is validated manually within the handler.
     pub randomness_account_data: AccountInfo<'info>,
-     /// CHECK: This is a simple Solana account holding SOL.
+    /// CHECK: This is a simple Solana account holding SOL.
     #[account(mut, seeds = [b"stateEscrow".as_ref()], bump )]
     pub escrow_account: AccountInfo<'info>,
     pub user: Signer<'info>,
     pub system_program: Program<'info, System>,
 }
-
 
 #[event]
 pub struct PlayerChoseNumber {
@@ -286,7 +427,16 @@ pub enum ErrorCode {
     RandomnessNotResolved,
     #[msg("Randomness expired")]
     RandomnessExpired,
-    #[msg("Come on, bruh 😜 ")]
+    #[msg("Unauthorized")]
     Unauthorized,
+    #[msg("Your bet is below the minimum")]
+    BetTooLow,
+    #[msg("Your bet is above the maximum")]
+    BetTooHigh,
+    #[msg("Your bet is above the maximum")]
+    MinAboveMax,
+    #[msg("Cannot set minimum above maximum")]
+    MinAboveMax,
+    #[msg("Cannot set maximum below minimum")]
+    MaxBelowMin,
 }
-
