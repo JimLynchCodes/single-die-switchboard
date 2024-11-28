@@ -54,9 +54,6 @@ anchjor build
 solana-keygen pubkey target/deploy/sb_randomness-keypair.json
 
 
-solana-keygen pubkey target/deploy/sb_randomness-keypair.json
-
-
 solana program show <PROGRAM_ID>
 
 
