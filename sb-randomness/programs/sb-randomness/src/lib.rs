@@ -3,44 +3,30 @@ use solana_program::pubkey::Pubkey;
 use std::str::FromStr;
 use switchboard_on_demand::accounts::RandomnessAccountData;
 
-// declare_id!("");  // Jim's "staging" version on dev net
-// make sure to set keypair when deploying
-declare_id!("4WQeVUwiBic2FLsGEvtRLLN7muFpwDVr62h5yWiPU8Hk");   // current staging
-// declare_id!("3gHtqUaKGu3RJCWVbgQFd5Gv4MQfQKmQjKSvdejkLoA7");   // current live dev net
-
-// /Users/jim/Git-Projects/single-die-switchboard/sb-randomness/target/deploy/sb_randomness-keypair.json
+declare_id!("9zYgmAvDrAi64rLuThmCTGF5StSwiRooV3e5k4nd7AAP"); // current staging
 
 const JIMBO: &str = "Fbgh1Bjsppo37A3aiNPEEg5kuuR4Ydca1cTYPh1tkRSo";
+
 const DEFAULT_MIN_BET: u64 = 10_000_000; // 0.01 Sol
 const DEFAULT_MAX_BET: u64 = 50_000_000; // 0.05 Sol
 
 pub fn withdraw<'a>(
-    // ctx: Context<anchor_lang::system_program::Transfer>,
+    ctx: Context<WithdrawCtx<'a>>,
     system_program: AccountInfo<'a>,
-    from: AccountInfo<'a>,
-    to: AccountInfo<'a>,
+    caller: AccountInfo<'a>,
+    // to: AccountInfo<'a>,
     amount: u64,
-    seeds: Option<&[&[&[u8]]]>, // Use Option to explicitly handle the presence or absence of seeds
+    seeds: Option<&[&[&[u8]]]>, // (pass escrow seeds) Use Option to explicitly handle the presence or absence of seeds
 ) -> Result<()> {
-    // Only Jim can call this fn
-    let deployer_pubkey = Pubkey::from_str(JIMBO).unwrap();
-    if from.key() != deployer_pubkey {
-        return Err(ErrorCode::Unauthorized.into());
-    }
-
-    let amount_needed = amount;
-    if amount_needed > from.lamports() {
-        msg!(
-            "Need {} lamports, but only have {}",
-            amount_needed,
-            from.lamports()
-        );
-        return Err(ErrorCode::NotEnoughFundsToPlay.into());
-    }
+    // Only admin can call this fn
+    require!(
+        ctx.accounts.user.key() == ctx.accounts.game_account.admin_pubkey,
+        ErrorCode::Unauthorized
+    );
 
     let transfer_accounts = anchor_lang::system_program::Transfer {
-        from: from.to_account_info(),
-        to: to.to_account_info(),
+        from: ctx.accounts.escrow_account.to_account_info(),
+        to: caller.to_account_info(),
     };
 
     let transfer_ctx = match seeds {
@@ -89,9 +75,14 @@ pub mod sb_randomness {
         let player_state = &mut ctx.accounts.player_state;
         player_state.latest_flip_result = 0;
         player_state.randomness_account = Pubkey::default(); // Placeholder, will be set in coin_flip
-        player_state.wager = 10_000_000; // 0.01 Sol
+        player_state.wager = 0; // let user decide their wager
         player_state.bump = ctx.bumps.player_state;
         player_state.allowed_user = ctx.accounts.user.key();
+
+        msg!(
+            "Initialized account for user {:?}!",
+            ctx.accounts.user.key().to_string()
+        );
 
         Ok(())
     }
@@ -99,28 +90,31 @@ pub mod sb_randomness {
     pub fn initialize_game(ctx: Context<InitializeGame>) -> Result<()> {
         // Only Jim can call this fn
         let deployer_pubkey = Pubkey::from_str(JIMBO).unwrap();
-        if ctx.accounts.user.key().key() != deployer_pubkey {
-            return Err(ErrorCode::Unauthorized.into());
-        }
+
+        require!(
+            ctx.accounts.user.key() == deployer_pubkey,
+            ErrorCode::Unauthorized
+        );
 
         ctx.accounts.game_account.min_bet = DEFAULT_MIN_BET;
         ctx.accounts.game_account.min_bet = DEFAULT_MAX_BET;
+        ctx.accounts.game_account.admin_pubkey = deployer_pubkey;
 
-        msg!("Initializing game account");
+        msg!("Initialized game account!");
 
         Ok(())
     }
 
     pub fn update_min_bet(ctx: Context<UpdateBet>, new_min_bet: u64) -> Result<()> {
-        // Only Jim can call this fn
-        let deployer_pubkey = Pubkey::from_str(JIMBO).unwrap();
-        if ctx.accounts.user.key().key() != deployer_pubkey {
-            return Err(ErrorCode::Unauthorized.into());
-        }
+        require!(
+            ctx.accounts.user.key() == ctx.accounts.game_account.admin_pubkey,
+            ErrorCode::Unauthorized
+        );
 
-        if new_min_bet > ctx.accounts.game_account.max_bet {
-            return Err(ErrorCode::MinAboveMax.into());
-        }
+        require!(
+            new_min_bet <= ctx.accounts.game_account.max_bet,
+            ErrorCode::MinAboveMax
+        );
 
         ctx.accounts.game_account.min_bet = new_min_bet;
 
@@ -130,19 +124,38 @@ pub mod sb_randomness {
     }
 
     pub fn update_max_bet(ctx: Context<UpdateBet>, new_max_bet: u64) -> Result<()> {
-        // Only Jim can call this fn
-        let deployer_pubkey = Pubkey::from_str(JIMBO).unwrap();
-        if ctx.accounts.user.key() != deployer_pubkey {
-            return Err(ErrorCode::Unauthorized.into());
-        }
+        require!(
+            ctx.accounts.user.key() == ctx.accounts.game_account.admin_pubkey,
+            ErrorCode::Unauthorized
+        );
 
-        if new_max_bet < ctx.accounts.game_account.min_bet {
-            return Err(ErrorCode::MaxBelowMin.into());
-        }
+        require!(
+            new_max_bet >= ctx.accounts.game_account.min_bet,
+            ErrorCode::MaxBelowMin
+        );
 
         ctx.accounts.game_account.max_bet = new_max_bet;
 
         msg!("Updating max bet to: {}", new_max_bet);
+
+        Ok(())
+    }
+
+    pub fn update_admin(
+        ctx: Context<UpdateAdminCtx>,
+        new_admin_public_address: String,
+    ) -> Result<()> {
+        
+        require!(
+            ctx.accounts.user.key() == ctx.accounts.game_account.admin_pubkey,
+            ErrorCode::Unauthorized
+        );
+
+        let new_admin_pubkey = Pubkey::from_str(&new_admin_public_address).unwrap();
+
+        ctx.accounts.game_account.admin_pubkey = new_admin_pubkey;
+
+        msg!("Updated admin to: {:?}", new_admin_pubkey.to_string());
 
         Ok(())
     }
@@ -159,13 +172,14 @@ pub mod sb_randomness {
         guess: u8,
         bet_amount: u64,
     ) -> Result<()> {
-        if bet_amount < ctx.accounts.game_account.min_bet {
-            return Err(ErrorCode::BetTooLow.into());
-        }
-
-        if bet_amount > ctx.accounts.game_account.max_bet {
-            return Err(ErrorCode::BetTooHigh.into());
-        }
+        require!(
+            bet_amount >= ctx.accounts.game_account.min_bet,
+            ErrorCode::BetTooLow
+        );
+        require!(
+            bet_amount <= ctx.accounts.game_account.max_bet,
+            ErrorCode::BetTooHigh
+        );
 
         let player_state = &mut ctx.accounts.player_state;
         player_state.wager = bet_amount;
@@ -337,8 +351,9 @@ pub struct CloseAccount<'info> {
 #[account]
 #[derive(Debug)]
 pub struct GameAccount {
-    pub min_bet: u64,
-    pub max_bet: u64,
+    pub min_bet: u64,         // 8 bytes
+    pub max_bet: u64,         // 8 bytes
+    pub admin_pubkey: Pubkey, // 32 bytes
 }
 
 #[derive(Accounts)]
@@ -346,14 +361,31 @@ pub struct InitializeGame<'info> {
     #[account(
         init,
         payer = user,
-        space = 8 + 16,
-        seeds = [b"gameAccount"],
-        bump
+        seeds = [b"gameAccount".as_ref()],
+        bump,
+        space = 8 + 48
     )]
     pub game_account: Account<'info, GameAccount>,
 
     #[account(mut)]
     pub user: Signer<'info>, // The program deployer/admin
+
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct WithdrawCtx<'info> {
+    // #[account(mut,
+    //     seeds = [b"playerState".as_ref(), user.key().as_ref()],
+    //     bump = player_state.bump)]
+    // pub player_state: Account<'info, PlayerState>,
+    #[account(mut, seeds = [b"gameAccount"], bump)]
+    pub game_account: Account<'info, GameAccount>,
+
+    #[account(mut, seeds = [b"stateEscrow".as_ref()], bump)]
+    pub escrow_account: AccountInfo<'info>,
+
+    pub user: Signer<'info>,
 
     pub system_program: Program<'info, System>,
 }
@@ -365,7 +397,7 @@ pub struct CoinFlip<'info> {
         bump = player_state.bump)]
     pub player_state: Account<'info, PlayerState>,
 
-    #[account(mut, seeds = [b"gameAccount"], bump)]
+    #[account(mut, seeds = [b"gameAccount"], bump )]
     pub game_account: Account<'info, GameAccount>,
 
     pub user: Signer<'info>,
@@ -376,8 +408,19 @@ pub struct CoinFlip<'info> {
     pub escrow_account: AccountInfo<'info>,
     pub system_program: Program<'info, System>,
 }
+
 #[derive(Accounts)]
 pub struct UpdateBet<'info> {
+    #[account(mut, seeds = [b"gameAccount"], bump)]
+    pub game_account: Account<'info, GameAccount>,
+
+    pub user: Signer<'info>,
+    /// CHECK: The account's data is validated manually within the handler.
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct UpdateAdminCtx<'info> {
     #[account(mut, seeds = [b"gameAccount"], bump)]
     pub game_account: Account<'info, GameAccount>,
 

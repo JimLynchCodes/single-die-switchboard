@@ -17,6 +17,7 @@ import { ensureEscrowFunded } from "./utils";
 
 const PLAYER_STATE_SEED = "playerState";
 const ESCROW_SEED = "stateEscrow";
+const GAME_ACCOUNT_SEED = "gameAccount";
 const COMMITMENT = "confirmed";
 // const COMMITMENT = "finalized";
 
@@ -74,6 +75,11 @@ const COMMITMENT = "confirmed";
     [Buffer.from(ESCROW_SEED)],
     myProgram.programId
   );
+
+  const [gameAccount, gameBump] = await PublicKey.findProgramAddressSync(
+    [Buffer.from(GAME_ACCOUNT_SEED)],
+    myProgram.programId
+  );
   console.log("\nInitialize the game states...");
   // await initializeGame(
   //   myProgram,
@@ -101,8 +107,13 @@ const COMMITMENT = "confirmed";
     rngKp.publicKey,
     userGuess,
     playerStateAccount,
+    gameAccount,
     keypair,
-    escrowAccount
+    escrowAccount,
+
+    // playerStateAccount,
+    // keypair,
+    // escrowAccount
   );
 
   const commitTx = await sb.asV0Tx({

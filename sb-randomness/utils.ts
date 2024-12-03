@@ -83,7 +83,7 @@ export function getUserGuessFromCommandLine(): number {
     process.exit(1); // Exit the script with an error code
   }
 
-   return +userGuessInput; // Convert "heads" to true, "tails" to false
+  return +userGuessInput; // Convert "heads" to true, "tails" to false
 }
 
 /**
@@ -168,13 +168,19 @@ export /**
     rngKpPublicKey: PublicKey,
     userGuess: number,
     playerStateAccount: [anchor.web3.PublicKey, number],
+    gameAccount: anchor.web3.PublicKey,
     keypair: Keypair,
-    escrowAccount: PublicKey
+    escrowAccount: PublicKey,
   ): Promise<anchor.web3.TransactionInstruction> {
   return await myProgram.methods
-    .coinFlip(rngKpPublicKey, userGuess)
+    .coinFlip(
+      rngKpPublicKey,  // Should be PublicKey
+      userGuess,       // Should be number
+      10_000_000        // Add the bet_amount parameter as a BigInt or number
+    )
     .accounts({
       playerState: playerStateAccount,
+      gameAccount: gameAccount,
       user: keypair.publicKey,
       randomnessAccountData: rngKpPublicKey,
       escrowAccount: escrowAccount,
