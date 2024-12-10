@@ -12,10 +12,16 @@ import reader from "readline-sync";
 
 const COMMITMENT = "confirmed";
 
+let cached_program: anchor.Program;
+
+
 export async function myAnchorProgram(
   provider: anchor.Provider,
   keypath: string
 ): Promise<anchor.Program> {
+
+  if (cached_program)
+    return cached_program;
 
   console.log("keypath: ", keypath)
   const myProgramKeypair = await sb.AnchorUtils.initKeypairFromFile(keypath);
@@ -25,16 +31,24 @@ export async function myAnchorProgram(
   const idl = (await anchor.Program.fetchIdl(pid, provider))!;
   console.log("idl: ", idl)
   const program = new anchor.Program(idl, provider);
+
+  cached_program = program;
+
   return program;
 }
 
 export async function loadSbProgram(
   provider: anchor.Provider
 ): Promise<anchor.Program> {
+
+  console.log("loading sb, provider: ", provider)
+
   const sbProgramId = await sb.getProgramId(provider.connection);
+  console.log("sbProgramId: ", sbProgramId)
   const sbIdl = await anchor.Program.fetchIdl(sbProgramId, provider);
   const sbProgram = new anchor.Program(sbIdl!, provider);
   return sbProgram;
+
 }
 
 export async function initializeMyProgram(
@@ -42,6 +56,10 @@ export async function initializeMyProgram(
 ): Promise<anchor.Program> {
   const myProgramPath =
     "./target/deploy/sb_randomness-keypair.json";
+
+  console.log("about to load: ", provider)
+  console.log("about to load: ", myProgramPath)
+
   const myProgram = await myAnchorProgram(provider, myProgramPath);
 
 
@@ -83,7 +101,7 @@ export function getUserGuessFromCommandLine(): number {
     process.exit(1); // Exit the script with an error code
   }
 
-   return +userGuessInput; // Convert "heads" to true, "tails" to false
+  return +userGuessInput; // Convert "heads" to true, "tails" to false
 }
 
 /**
@@ -172,7 +190,7 @@ export /**
     escrowAccount: PublicKey
   ): Promise<anchor.web3.TransactionInstruction> {
   return await myProgram.methods
-    .coinFlip(rngKpPublicKey, userGuess)
+    .coinFlip(rngKpPublicKey, userGuess, 10_000_000)
     .accounts({
       playerState: playerStateAccount,
       user: keypair.publicKey,

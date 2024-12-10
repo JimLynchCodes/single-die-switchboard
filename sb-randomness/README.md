@@ -114,3 +114,19 @@ Then:
 
 
 Note: The gud One
+
+
+
+
+## Ensure Good Setup
+
+sh -c "$(curl -sSfL https://release.anza.xyz/stable/install)"
+cargo install --git https://github.com/coral-xyz/anchor avm --force
+
+
+rm -rf target
+avm uninstall 0.29.0
+avm install 0.29.0
+rm -rf Cargo.lock
+rm -rf package-lock.json
+nvm use v20
