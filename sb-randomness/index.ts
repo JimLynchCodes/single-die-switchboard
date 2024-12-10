@@ -32,6 +32,9 @@ const COMMITMENT = "confirmed";
   let queue = await setupQueue(program!);
   console.log("queue: ", queue);
   const myProgram = await initializeMyProgram(program!.provider);
+
+  // Seems to be breaking in the function above ⬆️ 😢
+
   // console.log("my program: ", queue);
   // const sbProgram = await loadSbProgram(program!.provider);
   // console.log("switchboard program: ", queue);

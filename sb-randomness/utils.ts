@@ -57,11 +57,10 @@ export async function initializeMyProgram(
   const myProgramPath =
     "./target/deploy/sb_randomness-keypair.json";
 
-  console.log("about to load: ", provider)
-  console.log("about to load: ", myProgramPath)
+  console.log("about to load, provider: ", provider)
+  console.log("about to load, path: ", myProgramPath)
 
   const myProgram = await myAnchorProgram(provider, myProgramPath);
-
 
   console.log("My user pub key", provider.publicKey.toString());
   console.log("My program", myProgram.programId.toString());
