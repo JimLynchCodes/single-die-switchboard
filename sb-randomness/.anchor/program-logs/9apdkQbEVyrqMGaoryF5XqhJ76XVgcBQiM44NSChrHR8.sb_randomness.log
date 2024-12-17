@@ -1,0 +1,40 @@
+Streaming transaction logs mentioning 9apdkQbEVyrqMGaoryF5XqhJ76XVgcBQiM44NSChrHR8. Confirmed commitment
+Transaction executed in slot 4:
+  Signature: 2h6r6CXnUbBhfu98XasDvRT5vcT39CCDg3SiAkkZGSRDXhWKN6XnGbbkGYeG2PLSXVhZxcf7ehxkSQvZGyJnUTPw
+  Status: Ok
+  Log Messages:
+    Program 9apdkQbEVyrqMGaoryF5XqhJ76XVgcBQiM44NSChrHR8 invoke [1]
+    Program log: Instruction: Initialize
+    Program 11111111111111111111111111111111 invoke [2]
+    Program 11111111111111111111111111111111 success
+    Program 9apdkQbEVyrqMGaoryF5XqhJ76XVgcBQiM44NSChrHR8 consumed 12945 of 200000 compute units
+    Program 9apdkQbEVyrqMGaoryF5XqhJ76XVgcBQiM44NSChrHR8 success
+Transaction executed in slot 5:
+  Signature: K9uBqujJtySAcrr5Ltkt8Wko5KDHmvS3snBwnCriFZPjTN9SujzUZFswU8MKKLZaN8jh3Rt2QimpGxFvzwi9o22
+  Status: Ok
+  Log Messages:
+    Program 9apdkQbEVyrqMGaoryF5XqhJ76XVgcBQiM44NSChrHR8 invoke [1]
+    Program log: Instruction: InitializeGame
+    Program 11111111111111111111111111111111 invoke [2]
+    Program 11111111111111111111111111111111 success
+    Program log: Initializing game account
+    Program 9apdkQbEVyrqMGaoryF5XqhJ76XVgcBQiM44NSChrHR8 consumed 15458 of 200000 compute units
+    Program 9apdkQbEVyrqMGaoryF5XqhJ76XVgcBQiM44NSChrHR8 success
+Transaction executed in slot 6:
+  Signature: 5WCHJj8HdE7awMHC3xBf33zoJPRgMU6KTUZmTXgMRhZMefLt8NhYh7XQpPMNih5pf9DB5U6gc4kNqzJFY7bDE7mo
+  Status: Ok
+  Log Messages:
+    Program 9apdkQbEVyrqMGaoryF5XqhJ76XVgcBQiM44NSChrHR8 invoke [1]
+    Program log: Instruction: UpdateMinBet
+    Program log: Updating min bet to: 20000000
+    Program 9apdkQbEVyrqMGaoryF5XqhJ76XVgcBQiM44NSChrHR8 consumed 12009 of 200000 compute units
+    Program 9apdkQbEVyrqMGaoryF5XqhJ76XVgcBQiM44NSChrHR8 success
+Transaction executed in slot 7:
+  Signature: 4APLqRdEiRWUkTBUsLUXnH5k1ez9NhQaHjLXtQ5xTM6esQeJcNafXeyDn9MxwcoKJVXuzBiAyV5cSKCkqp1TnKqr
+  Status: Ok
+  Log Messages:
+    Program 9apdkQbEVyrqMGaoryF5XqhJ76XVgcBQiM44NSChrHR8 invoke [1]
+    Program log: Instruction: UpdateMaxBet
+    Program log: Updating max bet to: 100000000
+    Program 9apdkQbEVyrqMGaoryF5XqhJ76XVgcBQiM44NSChrHR8 consumed 12024 of 200000 compute units
+    Program 9apdkQbEVyrqMGaoryF5XqhJ76XVgcBQiM44NSChrHR8 success

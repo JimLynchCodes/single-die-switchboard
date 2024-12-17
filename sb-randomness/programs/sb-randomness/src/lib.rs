@@ -3,7 +3,7 @@ use solana_program::pubkey::Pubkey;
 use std::str::FromStr;
 use switchboard_on_demand::accounts::RandomnessAccountData;
 
-declare_id!("3gHtqUaKGu3RJCWVbgQFd5Gv4MQfQKmQjKSvdejkLoA7");
+declare_id!("9apdkQbEVyrqMGaoryF5XqhJ76XVgcBQiM44NSChrHR8");
 
 const JIMBO: &str = "Fbgh1Bjsppo37A3aiNPEEg5kuuR4Ydca1cTYPh1tkRSo";
 const DEFAULT_MIN_BET: u64 = 10_000_000; // 0.01 Sol
@@ -18,8 +18,8 @@ pub fn withdraw<'a>(
     seeds: Option<&[&[&[u8]]]>, // Use Option to explicitly handle the presence or absence of seeds
 ) -> Result<()> {
     // Only Jim can call this fn
-    let deployer_pubkey = Pubkey::from_str(JIMBO).unwrap();
-    if from.key() != deployer_pubkey {
+    let _deployer_pubkey = Pubkey::from_str(JIMBO).unwrap();
+    if from.key() != _deployer_pubkey {
         return Err(ErrorCode::Unauthorized.into());
     }
 
@@ -93,13 +93,13 @@ pub mod sb_randomness {
 
     pub fn initialize_game(ctx: Context<InitializeGame>) -> Result<()> {
         // Only Jim can call this fn
-        let deployer_pubkey = Pubkey::from_str(JIMBO).unwrap();
-        if from.key() != deployer_pubkey {
-            return Err(ErrorCode::Unauthorized.into());
-        }
+        let _deployer_pubkey = Pubkey::from_str(JIMBO).unwrap();
+        // if from.key() != deployer_pubkey {
+        //     return Err(ErrorCode::Unauthorized.into());
+        // }
 
         ctx.accounts.game_account.min_bet = DEFAULT_MIN_BET;
-        ctx.accounts.game_account.min_bet = DEFAULT_MAX_BET;
+        ctx.accounts.game_account.max_bet = DEFAULT_MAX_BET;
 
         msg!("Initializing game account");
 
@@ -108,10 +108,10 @@ pub mod sb_randomness {
 
     pub fn update_min_bet(ctx: Context<UpdateBet>, new_min_bet: u64) -> Result<()> {
         // Only Jim can call this fn
-        let deployer_pubkey = Pubkey::from_str(JIMBO).unwrap();
-        if from.key() != deployer_pubkey {
-            return Err(ErrorCode::Unauthorized.into());
-        }
+        let _deployer_pubkey = Pubkey::from_str(JIMBO).unwrap();
+        // if from.key() != deployer_pubkey {
+        //     return Err(ErrorCode::Unauthorized.into());
+        // }
 
         if new_min_bet > ctx.accounts.game_account.max_bet {
             return Err(ErrorCode::MinAboveMax.into());
@@ -126,10 +126,10 @@ pub mod sb_randomness {
 
     pub fn update_max_bet(ctx: Context<UpdateBet>, new_max_bet: u64) -> Result<()> {
         // Only Jim can call this fn
-        let deployer_pubkey = Pubkey::from_str(JIMBO).unwrap();
-        if from.key() != deployer_pubkey {
-            return Err(ErrorCode::Unauthorized.into());
-        }
+        let _deployer_pubkey = Pubkey::from_str(JIMBO).unwrap();
+        // if from.key() != deployer_pubkey {
+        //     return Err(ErrorCode::Unauthorized.into());
+        // }
 
         if new_max_bet < ctx.accounts.game_account.min_bet {
             return Err(ErrorCode::MaxBelowMin.into());
@@ -210,7 +210,7 @@ pub mod sb_randomness {
         Ok(())
     }
 
-    // Settle the flip after randomness is revealed
+    // Settle the flip after randomness is revealedf
     pub fn settle_flip(ctx: Context<SettleFlip>, escrow_bump: u8) -> Result<()> {
         let clock: Clock = Clock::get()?;
         let player_state = &mut ctx.accounts.player_state;
@@ -321,7 +321,7 @@ pub struct CloseAccount<'info> {
         seeds = [b"playerState", user.key().as_ref()],
         bump
     )]
-    pub user_account: Account<'info, UserAccount>,
+    pub user_account: Account<'info, GameAccount>,
 
     #[account(mut)]
     pub user: Signer<'info>,
@@ -433,8 +433,6 @@ pub enum ErrorCode {
     BetTooLow,
     #[msg("Your bet is above the maximum")]
     BetTooHigh,
-    #[msg("Your bet is above the maximum")]
-    MinAboveMax,
     #[msg("Cannot set minimum above maximum")]
     MinAboveMax,
     #[msg("Cannot set maximum below minimum")]

@@ -1,17 +1,17 @@
 [toolchain]
 
 [features]
-seeds = false
+resolution = true
 skip-lint = false
 
 [programs.localnet]
-sb_randomness = "JAMFaXfnb7fMmX7YacoSWRBya7pA18fZgefv9EbjAxJY"
+sb_randomness = "9apdkQbEVyrqMGaoryF5XqhJ76XVgcBQiM44NSChrHR8"
 
 [registry]
 url = "https://api.apr.dev"
 
 [provider]
-cluster = "devnet"
+cluster = "localnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]
