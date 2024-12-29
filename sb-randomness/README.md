@@ -15,7 +15,7 @@ Store key somewhere safe:
 solana-keygen new --outfile ~/.single_die_program_keypair.json
 ```
 
-Then take the Pubkey output from above command and use in the declare_id! macro.
+Then take the Pubkey output from the above command and use in the declare_id! macro.
 
 
 ## Deploy to devnet
